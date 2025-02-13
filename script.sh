@@ -13,16 +13,18 @@ convert_slash_to_dash() {
     echo "$1" | sed 's#^/##; s#/$##; s#/#-#g'
 }
 
+inc=1
 while IFS= read -r link || [[ -n "$link" ]]; do
     echo "Starting migration for $link"
-    echo $(convert_slash_to_dash $link)
+    converted_name=$(convert_slash_to_dash $link)
+    echo "$converted_name"
 
-    
     repo_name=$(basename -s .git "$link")
-
+    new_repo_name="repo-$inc"
+    
     # Clone the repo
     echo "Cloning $repo_name..."
-    git clone "https://android.googlesource.com$link" "$repo_name"
+    git clone "https://android.googlesource.com$link" "$link"
     cd "$repo_name" || { echo "Failed to navigate to $repo_name"; exit 1; }
 
     echo "Remove .git directory"
@@ -34,7 +36,7 @@ while IFS= read -r link || [[ -n "$link" ]]; do
     git commit -m "initial commit"
 
    echo "create new repo for $GH_ORG"
-   gh repo create "https://github.com/$GH_ORG/$(convert_slash_to_dash $link)" --public --source=. --remote=origin
+   gh repo create "https://github.com/$GH_ORG/$new_repo_name" --public --source=. --remote=origin
 
    echo "Push to GitHub"
    git branch -M master
@@ -43,6 +45,8 @@ while IFS= read -r link || [[ -n "$link" ]]; do
    cd ..
    echo "Removing local folder $repo_name"
    rm -rf "$repo_name"
+
+   ((inc++))
 
 done < "$CSV_FILE"
 
